@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, setAuth } from "../api";
+import { api, errorMessage } from "../api";
 import logo from '../assets/logo.png';
+import {startSession} from "../auth.ts";
+
 export default function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
@@ -9,21 +11,23 @@ export default function Login() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  async function onSubmit(e: React.FormEvent) {
+
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
+
       const { data } = await api.post("/auth/login", { email, password });
-      localStorage.setItem("token", data.token);
-      setAuth(data.token);
-      nav("/hola");
+      await startSession(data.token, data.user.id);
+      nav("/dashboard", {replace:true});
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Error al iniciar sesión");
+      setError(errorMessage(err, "Error al iniciar sesión"));
     } finally {
       setLoading(false);
     }
   }
+  
   return (
     <div className="auth-wrap">
       <div className="card">
@@ -33,18 +37,21 @@ export default function Login() {
             <p className="muted">Bienvenido, inicia sesión para continuar</p>
         </div>
         <form className="form" onSubmit={onSubmit}>
-          <label>Email</label>
-          <input
-            type="email"
+          <label htmlFor="Email">Email</label> 
+          <input 
+            id="Email" 
+            type="email" 
             placeholder="tucorreo@dominio.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+
           <label>Contraseña</label>
           <div className="pass">
             <input
               type={show ? "text" : "password"}
+              autoComplete="current-password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -54,12 +61,12 @@ export default function Login() {
               type="button"
               className="ghost"
               onClick={() => setShow((s) => !s)}
-              aria-label="Mostrar/ocultar contraseña"
+              aria-label={show ?"ocultar contraseña": "Mostrar Contraseña"}
             >
               {show ? "Ocultar" : "Ver"}
             </button>
           </div>
-          {error && <div className="alert">{error}</div>}
+          {error && <div className="alert" role="alert">{error}</div>}
           <button className="btn primary" disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}
           </button>
